@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <title>Auditoría Solar AR</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <script type="module" src="https://unpkg.com/@google/model-viewer/dist/model-viewer.min.js"></script>
+    <style>
+        body { margin: 0; font-family: sans-serif; }
+        model-viewer { width: 100%; height: 80vh; background-color: #f0f0f0; }
+        .controls { padding: 20px; text-align: center; }
+        button { padding: 10px 20px; background: #007bff; color: white; border: none; border-radius: 5px; }
+    </style>
+</head>
+<body>
+
+    <model-viewer 
+        src="https://modelviewer.dev/shared-assets/models/Astronaut.glb" 
+        ar 
+        ar-modes="webxr scene-viewer quick-look" 
+        camera-controls 
+        poster="poster.webp" 
+        shadow-intensity="1">
+        
+        <button slot="ar-button" id="ar-button">
+            🚀 Ver panel en el tejado (AR)
+        </button>
+    </model-viewer>
+
+    <div class="controls">
+        <h2>Auditoría Rápida</h2>
+        <p>Apunta al tejado para previsualizar la instalación.</p>
+        <div id="results">Inclinación estimada: --°</div>
+    </div>
+
+</body>
+</html>
