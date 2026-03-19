@@ -6,51 +6,193 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <script type="module" src="https://ajax.googleapis.com/ajax/libs/model-viewer/3.4.0/model-viewer.min.js"></script>
     <style>
-        body { margin: 0; font-family: sans-serif; background: #1a1a1a; color: white; overflow: hidden; }
-        model-viewer { width: 100vw; height: 100vh; --poster-color: transparent; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body { 
+            font-family: sans-serif; 
+            background: #1a1a1a; 
+            color: white; 
+            overflow: hidden;
+            width: 100vw;
+            height: 100vh;
+        }
+        
+        #viewer-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+        }
+        
+        model-viewer { 
+            width: 100%;
+            height: 100%;
+            --poster-color: #1a1a1a;
+        }
+        
+        .progress-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 4px;
+            background: #333;
+            z-index: 100;
+            display: none;
+        }
+        
+        .progress-container.active {
+            display: block;
+        }
+        
+        #progress-bar {
+            height: 100%;
+            background: linear-gradient(90deg, #fbbf24, #f59e0b);
+            width: 0%;
+            transition: width 0.2s ease;
+        }
+        
         .interface {
-            position: absolute; bottom: 0; width: 100%; padding: 20px;
-            background: rgba(0,0,0,0.8); text-align: center; box-sizing: border-box;
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            background: linear-gradient(to top, rgba(0,0,0,0.9), rgba(0,0,0,0.5));
+            text-align: center;
+            z-index: 50;
         }
+        
+        .interface h3 {
+            margin: 0 0 10px 0;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        .interface p {
+            margin: 0 0 15px 0;
+            font-size: 14px;
+            opacity: 0.9;
+        }
+        
         #ar-button {
-            background: #fbbf24; border-radius: 30px; border: none;
-            padding: 15px 30px; font-weight: bold; color: #000;
+            background: linear-gradient(135deg, #fbbf24, #f59e0b);
+            border-radius: 30px;
+            border: none;
+            padding: 15px 40px;
+            font-weight: bold;
+            color: #000;
+            font-size: 16px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(251, 191, 36, 0.3);
         }
-        #progress-bar { width: 100%; height: 5px; background: #444; position: absolute; top: 0; left: 0; }
-        #update-bar { width: 0%; height: 100%; background: #fbbf24; transition: width 0.3s; }
+        
+        #ar-button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 6px 20px rgba(251, 191, 36, 0.5);
+        }
+        
+        #ar-button:active {
+            transform: scale(0.95);
+        }
+        
+        #ar-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+        
+        .status {
+            font-size: 12px;
+            margin-top: 10px;
+            opacity: 0.7;
+        }
+        
+        .error {
+            color: #ef4444;
+        }
+        
+        .success {
+            color: #10b981;
+        }
     </style>
 </head>
 <body>
-
-    <model-viewer 
-        src="https://modelviewer.dev/shared-assets/models/nefertiti.glb"
-        camera-controls touch-action="pan-y"
-        shadow-intensity="1" 
-        alt="Panel Solar 3D">
-        
-        <div id="progress-bar" slot="progress-bar"><div id="update-bar"></div></div>
-        
-        <button slot="ar-button" id="ar-button">
-            🚀 ACTIVAR CÁMARA (AR)
-        </button>
-
-        <div class="interface">
-            <h3 style="margin:0">Auditoría Solar V1.0</h3>
-            <p id="instrucciones">Si ves el fondo gris, espera a que cargue el modelo...</p>
+    <div id="viewer-container">
+        <div class="progress-container" id="progress-container">
+            <div id="progress-bar"></div>
         </div>
-    </model-viewer>
+        
+        <model-viewer 
+            id="model"
+            src="https://modelviewer.dev/shared-assets/models/nefertiti.glb"
+            camera-controls 
+            touch-action="pan-y"
+            shadow-intensity="1"
+            exposure="1"
+            alt="Panel Solar 3D">
+        </model-viewer>
+        
+        <div class="interface">
+            <h3>🔆 Auditoría Solar V1.0</h3>
+            <p id="instrucciones">Cargando modelo 3D...</p>
+            <button id="ar-button" disabled>
+                🚀 ACTIVAR CÁMARA (AR)
+            </button>
+            <div class="status" id="status"></div>
+        </div>
+    </div>
 
     <script>
-        // Lógica para la barra de carga
-        const modelViewer = document.querySelector('model-viewer');
-        modelViewer.addEventListener('progress', (event) => {
-            const progress = event.detail.totalProgress * 100;
-            document.getElementById('update-bar').style.width = `${progress}%`;
-            if(progress === 100) {
-                document.getElementById('instrucciones').innerText = "¡Listo! Pulsa el botón amarillo";
+        const modelViewer = document.getElementById('model');
+        const arButton = document.getElementById('ar-button');
+        const instrucciones = document.getElementById('instrucciones');
+        const progressContainer = document.getElementById('progress-container');
+        const progressBar = document.getElementById('progress-bar');
+        const statusDiv = document.getElementById('status');
+
+        function checkARSupport() {
+            const isWebXRSupported = navigator.xr !== undefined;
+            
+            if (!isWebXRSupported) {
+                statusDiv.innerHTML = '<span class="error">⚠️ AR no soportado en este dispositivo</span>';
+                return false;
             }
+            return true;
+        }
+
+        modelViewer.addEventListener('progress', (event) => {
+            progressContainer.classList.add('active');
+            const progress = event.detail.totalProgress * 100;
+            progressBar.style.width = `${progress}%`;
+        });
+
+        modelViewer.addEventListener('load', () => {
+            progressContainer.classList.remove('active');
+            instrucciones.textContent = '✅ ¡Modelo listo! Pulsa el botón para activar AR';
+            
+            if (checkARSupport()) {
+                arButton.disabled = false;
+                statusDiv.innerHTML = '<span class="success">✓ AR disponible</span>';
+            }
+        });
+
+        modelViewer.addEventListener('error', (error) => {
+            instrucciones.textContent = '❌ Error al cargar el modelo';
+            statusDiv.innerHTML = '<span class="error">Error: ' + error.message + '</span>';
+        });
+
+        arButton.addEventListener('click', () => {
+            if (modelViewer.canActivateAR) {
+                modelViewer.activateAR();
+            } else {
+                statusDiv.innerHTML = '<span class="error">⚠️ AR no disponible para este modelo</span>';
+            }
+        });
+
+        window.addEventListener('load', () => {
+            checkARSupport();
         });
     </script>
 </body>
 </html>
-
